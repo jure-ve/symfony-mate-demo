@@ -4,6 +4,8 @@ Proyecto de demostración y experimentación con **Symfony AI Mate** (`symfony/a
 
 Este repositorio muestra cómo dotar a un agente de código (Claude Code, Cursor, Antigravity, etc.) de **herramientas de diagnóstico directas en tiempo de ejecución**: acceso al Web Profiler, consulta de logs estructurados de Monolog, inspección del contenedor de inyección de dependencias y creación de herramientas personalizadas con atributos PHP (`#[MateTool]`).
 
+> **Artículo completo:** [Symfony AI en la práctica: Symfony Mate 0.14, dale ojos a tu agente de código](https://juredev.com/blog/2026/11/symfony-mate-0-14-dale-ojos-a-tu-agente-de-codigo/) — incluye el análisis técnico detallado y los resultados del experimento comparativo con y sin Mate.
+
 ---
 
 ## ¿Qué es Symfony Mate?
