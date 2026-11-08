@@ -20,9 +20,10 @@ Tradicionalmente, para entender el comportamiento en ejecución de una aplicaci�
 
 ## Contenido de la demo
 
-- **Caso práctico de diagnóstico (N+1 queries):**
+- **Caso práctico de diagnóstico (N+1 queries y errores):**
   - `GET /catalog/slow`: Carga categorías y recorre productos disparando múltiples consultas adicionales (problema N+1 clásico con 21 consultas SQL para 20 categorías).
   - `GET /catalog/fast`: Consulta optimizada con `leftJoin` e hidratación conjunta en una única consulta SQL.
+  - `GET /catalog/boom`: Registra un error estructurado en Monolog (`sku: X-001`) y lanza una excepción (`500 Internal Server Error`) para pruebas de diagnóstico forense.
 - **Comando de seed (`app:seed`):** Genera 20 categorías con 10 productos cada una (200 productos) para simular volumen realista.
 - **Herramienta personalizada (`MateTool`):** En `mate/src/AppRoutes.php` se implementa la tool `app-routes` usando `#[MateTool]`, permitiendo al agente listar y filtrar rutas registradas en la aplicación de forma segura.
 - **Instrucciones para agentes:** Configuraciones listas en `AGENTS.md`, `CLAUDE.md`, `.agents/skills/` y `.claude/skills/`.
@@ -44,10 +45,9 @@ Con las extensiones oficiales instaladas en este proyecto (`ai-mate`, `ai-symfon
 
 ## Requisitos
 
-- **PHP** >= 8.4 (extensiones `ctype`, `iconv`, `pdo_pgsql`)
+- **PHP** >= 8.4 (extensiones `ctype`, `iconv`, `pdo_sqlite`)
 - **Composer** 2.x
-- **Docker** y **Docker Compose** (para PostgreSQL)
-- **Symfony CLI** (opcional, pero recomendado)
+- **Symfony CLI** (opcional, también puedes usar el servidor embebido de PHP)
 
 ---
 
@@ -61,27 +61,21 @@ cd symfony-mate-demo
 composer install
 ```
 
-### 2. Iniciar la base de datos
+### 2. Ejecutar migraciones de base de datos (SQLite)
 
-Levanta el contenedor de PostgreSQL configurado en `compose.yaml`:
-
-```bash
-docker compose up -d
-```
-
-### 3. Ejecutar migraciones de base de datos
+El proyecto utiliza por defecto una base de datos SQLite local (`var/data.db`) configurada en `.env`:
 
 ```bash
 php bin/console doctrine:migrations:migrate --no-interaction
 ```
 
-### 4. Sembrar datos de prueba
+### 3. Sembrar datos de prueba
 
 ```bash
 php bin/console app:seed
 ```
 
-### 5. Iniciar el servidor local
+### 4. Iniciar el servidor local
 
 ```bash
 symfony serve -d
@@ -107,6 +101,12 @@ Puedes comprobar el impacto del problema N+1 y la optimización:
   ```
   *(Resuelve todo en 1 única consulta SQL)*
 
+- **Endpoint con fallo simulado (500 + log en Monolog):**
+  ```bash
+  curl http://127.0.0.1:8000/catalog/boom
+  ```
+  *(Registra el error en `var/log/dev.log` y captura la excepción en el Profiler)*
+
 ---
 
 ## Uso de Symfony Mate CLI
@@ -123,8 +123,12 @@ vendor/bin/mate tools:inspect symfony-profiler-list
 # Consultar los últimos perfiles generados por peticiones HTTP
 vendor/bin/mate tools:call symfony-profiler-list --limit=5
 
-# Inspeccionar un perfil por su token (consultas Doctrine, tiempo de respuesta, etc.)
-vendor/bin/mate tools:call symfony-profiler-get --token=<token>
+# Inspeccionar los colectores de un perfil por su token (db, exception, time, etc.)
+vendor/bin/mate resources:read symfony-profiler://profile/<token>
+vendor/bin/mate resources:read symfony-profiler://profile/<token>/db
+
+# Buscar errores en los logs de Monolog
+vendor/bin/mate tools:call monolog-search --term="Fallo simulado" --level=ERROR
 
 # Probar la herramienta personalizada de rutas
 vendor/bin/mate tools:call app-routes --path=/catalog
